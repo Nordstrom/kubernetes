@@ -589,8 +589,8 @@ func TestNodeAddresses(t *testing.T) {
 	var instance1 ec2.Instance
 
 	//0
-	instance0.InstanceId = aws.String("instance-same")
-	instance0.PrivateDnsName = aws.String("instance-same.ec2.internal")
+	instance0.InstanceId = aws.String("i-self")
+	instance0.PrivateDnsName = aws.String("ip-172-20-0-100.ec2.internal")
 	instance0.PrivateIpAddress = aws.String("192.168.0.1")
 	instance0.PublicIpAddress = aws.String("1.2.3.4")
 	instance0.InstanceType = aws.String("c3.large")
@@ -600,8 +600,8 @@ func TestNodeAddresses(t *testing.T) {
 	instance0.State = &state0
 
 	//1
-	instance1.InstanceId = aws.String("instance-same")
-	instance1.PrivateDnsName = aws.String("instance-same.ec2.internal")
+	instance1.InstanceId = aws.String("i-self")
+	instance1.PrivateDnsName = aws.String("ip-172-20-0-100.ec2.internal")
 	instance1.PrivateIpAddress = aws.String("192.168.0.2")
 	instance1.InstanceType = aws.String("c3.large")
 	state1 := ec2.InstanceState{
@@ -618,13 +618,13 @@ func TestNodeAddresses(t *testing.T) {
 	}
 
 	aws2, _ := mockInstancesResp(instances)
-	_, err2 := aws2.NodeAddresses("instance-same.ec2.internal")
+	_, err2 := aws2.NodeAddresses("ip-172-20-0-100.ec2.internal")
 	if err2 == nil {
 		t.Errorf("Should error when multiple instances found")
 	}
 
 	aws3, _ := mockInstancesResp(instances[0:1])
-	addrs3, err3 := aws3.NodeAddresses("instance-same.ec2.internal")
+	addrs3, err3 := aws3.NodeAddresses("ip-172-20-0-100.ec2.internal")
 	if err3 != nil {
 		t.Errorf("Should not error when instance found")
 	}
@@ -634,18 +634,6 @@ func TestNodeAddresses(t *testing.T) {
 	testHasNodeAddress(t, addrs3, api.NodeInternalIP, "192.168.0.1")
 	testHasNodeAddress(t, addrs3, api.NodeLegacyHostIP, "192.168.0.1")
 	testHasNodeAddress(t, addrs3, api.NodeExternalIP, "1.2.3.4")
-
-	aws4, fakeServices := mockInstancesResp([]*ec2.Instance{})
-	fakeServices.externalIP = "2.3.4.5"
-	fakeServices.internalIP = "192.168.0.2"
-	aws4.selfAWSInstance = &awsInstance{nodeName: fakeServices.instanceId}
-
-	addrs4, err4 := aws4.NodeAddresses(fakeServices.instanceId)
-	if err4 != nil {
-		t.Errorf("unexpected error: %v", err4)
-	}
-	testHasNodeAddress(t, addrs4, api.NodeInternalIP, "192.168.0.2")
-	testHasNodeAddress(t, addrs4, api.NodeExternalIP, "2.3.4.5")
 }
 
 func TestGetRegion(t *testing.T) {

@@ -628,21 +628,13 @@ func (aws *AWSCloud) NodeAddresses(name string) ([]api.NodeAddress, error) {
 	if err != nil {
 		return nil, err
 	}
-	if self.nodeName == name || len(name) == 0 {
-		internalIP, err := aws.metadata.GetMetadata("local-ipv4")
-		if err != nil {
-			return nil, err
-		}
-		externalIP, err := aws.metadata.GetMetadata("public-ipv4")
-		if err != nil {
-			return nil, err
-		}
-		return []api.NodeAddress{
-			{Type: api.NodeInternalIP, Address: internalIP},
-			{Type: api.NodeExternalIP, Address: externalIP},
-		}, nil
+
+	// Error if self is not the passed node
+	if self.nodeName != name || len(name) == 0 {
+		return nil, errors.New("self.nodeName does not match name")
 	}
-	instance, err := aws.getInstanceByNodeName(name)
+
+	instance, err := aws.getInstanceById(self.awsID)
 	if err != nil {
 		return nil, err
 	}
@@ -677,8 +669,17 @@ func (aws *AWSCloud) NodeAddresses(name string) ([]api.NodeAddress, error) {
 // ExternalID returns the cloud provider ID of the specified instance (deprecated).
 // Note that if the instance does not exist or is no longer running, we must return ("", cloudprovider.InstanceNotFound)
 func (aws *AWSCloud) ExternalID(name string) (string, error) {
-	// We must verify that the instance still exists
-	instance, err := aws.findInstanceByNodeName(name)
+	self, err := aws.getSelfAWSInstance()
+	if err != nil {
+		return "", err
+	}
+
+	// Error if self is not the passed node
+	if self.nodeName != name || len(name) == 0 {
+		return "", errors.New("self.nodeName does not match name")
+	}
+
+	instance, err := aws.getInstanceById(self.awsID)
 	if err != nil {
 		return "", err
 	}
@@ -690,14 +691,23 @@ func (aws *AWSCloud) ExternalID(name string) (string, error) {
 
 // InstanceID returns the cloud provider ID of the specified instance.
 func (aws *AWSCloud) InstanceID(name string) (string, error) {
-	// TODO: Do we need to verify it exists, or can we just construct it knowing our AZ (or via caching?)
-	inst, err := aws.getInstanceByNodeName(name)
+	self, err := aws.getSelfAWSInstance()
+	if err != nil {
+		return "", err
+	}
+
+	// Error if self is not the passed node
+	if self.nodeName != name || len(name) == 0 {
+		return "", errors.New("self.nodeName does not match name")
+	}
+
+	instance, err := aws.getInstanceById(self.awsID)
 	if err != nil {
 		return "", err
 	}
 	// In the future it is possible to also return an endpoint as:
 	// <endpoint>/<zone>/<instanceid>
-	return "/" + orEmpty(inst.Placement.AvailabilityZone) + "/" + orEmpty(inst.InstanceId), nil
+	return "/" + orEmpty(instance.Placement.AvailabilityZone) + "/" + orEmpty(instance.InstanceId), nil
 }
 
 // Check if the instance is alive (running or pending)
